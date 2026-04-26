@@ -27,3 +27,5 @@ build/
 Thumbs.db
 node_modules/
 package*.json
+.vscode/
+.claude/
