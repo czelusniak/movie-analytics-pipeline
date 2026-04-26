@@ -202,6 +202,12 @@ See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ---
 
+## Inspiration
+
+This project was inspired by [vbluuiza](https://github.com/vbluuiza)'s [Data Engineering tutorial](https://www.youtube.com/watch?v=38FhOVq3tI0) and adapted significantly: the original cloud stack (GCS + BigQuery + Metabase) was replaced with a fully local open-source stack (DuckDB + dbt Core + Airflow + Superset), and the data models were rewritten idiomatically with proper layering, tests, and best practices.
+
+---
+
 ## Author
 
 **George Czelusniak**
