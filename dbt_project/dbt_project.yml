@@ -1,0 +1,37 @@
+name: movie_pipeline
+version: '1.0.0'
+config-version: 2
+
+# Profile defined in profiles.yml — points to DuckDB
+profile: movie_pipeline
+
+# Where dbt looks for models, tests, macros, seeds
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+analysis-paths: ["analyses"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# Materialization strategy per layer:
+#
+#   staging     → views   (cheap, always up-to-date, no storage cost)
+#   intermediate → views  (same reason — these are intermediate joins, not final outputs)
+#   marts       → tables  (materialized for Superset query performance)
+#
+# You can override per-model with {{ config(materialized='table') }} in the model file.
+
+models:
+  movie_pipeline:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

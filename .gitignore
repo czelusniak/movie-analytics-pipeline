@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# DuckDB warehouse (binary, generated — do not commit)
+data/warehouse.duckdb
+data/warehouse.duckdb.wal
+
+# Raw data (too large for git — use data/sample/ for small examples)
+data/raw/
+
+# dbt artifacts
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,27 @@
+# dbt connection profile for DuckDB (local development)
+#
+# This file tells dbt HOW to connect to your data warehouse.
+# In a cloud project (BigQuery, Snowflake), this would have credentials.
+# With DuckDB, it's just a file path — no credentials needed.
+#
+# The profile name here ("movie_pipeline") must match the "profile:" key
+# in dbt_project.yml.
+#
+# IMPORTANT: Do NOT commit credentials here if you ever add a cloud target.
+# Use environment variables via {{ env_var('VAR_NAME') }} instead.
+
+movie_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Path to the DuckDB warehouse file, relative to the dbt_project/ directory.
+      # Running `dbt run` from inside dbt_project/ will resolve to data/warehouse.duckdb
+      path: ../data/warehouse.duckdb
+      threads: 4
+
+    # Example: add a 'ci' target that uses a fresh in-memory DB for GitHub Actions
+    # ci:
+    #   type: duckdb
+    #   path: ':memory:'
+    #   threads: 2

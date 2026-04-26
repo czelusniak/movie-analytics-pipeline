@@ -1,0 +1,54 @@
+# Apache Superset — Local Development Setup
+#
+# Access the UI at http://localhost:8088
+# Default credentials: admin / admin
+#
+# Connecting Superset to DuckDB:
+#   1. Go to Settings > Database Connections > + Database
+#   2. Choose "Other" (SQLAlchemy URI)
+#   3. Enter the URI: duckdb:////opt/app/data/warehouse.duckdb
+#      (4 slashes = absolute path inside the container)
+#   4. Click "Test Connection" — should succeed
+#   5. Save, then create Datasets from your mart_* tables
+#
+# Why does the URI have 4 slashes?
+#   duckdb://  = scheme
+#   /          = empty host (local)
+#   /opt/app/data/warehouse.duckdb = absolute path
+#   So: duckdb:// + /opt/app/... = duckdb:////opt/app/...
+#
+# Usage:
+#   docker compose -f docker/docker-compose-superset.yml up -d
+#   # or: make superset-up
+
+version: '3.8'
+
+services:
+  superset:
+    image: apache/superset:4.0.2
+    container_name: superset
+    environment:
+      SUPERSET_SECRET_KEY: "your-secret-key-change-in-production"
+    ports:
+      - "8088:8088"
+    volumes:
+      # Mount the project root so Superset can read the DuckDB file
+      - ../:/opt/app
+      # Persist Superset's own metadata (dashboards, charts, users)
+      - superset_home:/app/superset_home
+    command: >
+      bash -c "
+        pip install duckdb-engine>=0.9.0 duckdb>=0.10.0 &&
+        superset db upgrade &&
+        superset fab create-admin
+          --username admin
+          --firstname Admin
+          --lastname User
+          --email admin@superset.com
+          --password admin &&
+        superset init &&
+        superset run -p 8088 --with-threads --reload --debugger
+      "
+
+volumes:
+  superset_home:
