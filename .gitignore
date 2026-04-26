@@ -30,3 +30,4 @@ package*.json
 .vscode/
 .claude/
 logs/
+CLAUDE.md
