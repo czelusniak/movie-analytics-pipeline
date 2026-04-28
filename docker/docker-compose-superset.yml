@@ -19,7 +19,6 @@
 #
 # Usage:
 #   docker compose -f docker/docker-compose-superset.yml up -d
-#   # or: make superset-up
 
 services:
   superset:
