@@ -24,7 +24,7 @@ models:
         description: "Year of the rating."
         tests:
           - not_null
-      - name: rating_month
+      - name: month_number
         description: "Month number of the rating."
         tests:
           - not_null
