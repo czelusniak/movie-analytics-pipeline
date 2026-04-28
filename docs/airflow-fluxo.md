@@ -1,177 +1,182 @@
-# Fluxo macro do pipeline — entendendo o que acontece
+# Pipeline macro flow — understanding what happens
 
-## Os 2 mal-entendidos principais
+## The 2 main misconceptions
 
-### Mal-entendido 1: "sobe um container quando precisa rodar"
+### Misconception 1: "a container starts up when the pipeline needs to run"
 
-**Errado.** Os containers do Airflow ficam **sempre rodando**, 24/7.
+**Wrong.** Airflow containers run **continuously**, 24/7.
 
-Pense neles como um servidor que você liga uma vez (`docker compose up`) e deixa ligado. O container do `airflow-scheduler` está sempre vivo, fazendo polling constante para ver se chegou hora de rodar algum DAG.
+Think of them as a server you start once (`docker compose up`) and leave running. The `airflow-scheduler` container is always alive, polling constantly to check whether any DAG is due to run.
 
-Containers só morrem se você:
-- Mandar parar (`docker compose down`)
-- Reiniciar a máquina
-- Algum erro fatal
+Containers only stop if you:
+- Manually shut them down (`docker compose down`)
+- Restart the machine
+- A fatal error occurs
 
-### Mal-entendido 2: "sobe o projeto para o container"
+### Misconception 2: "the project is uploaded into the container"
 
-**Errado.** O projeto **nunca é copiado** para dentro do container.
+**Wrong.** The project is **never copied** into the container.
 
-O que existe é um **volume** — uma janela compartilhada entre sua máquina e o container. Quando o container olha para `/opt/app`, ele está vendo, em tempo real, a pasta `~/dev/netflix-data` da sua máquina. Se você editar um arquivo no VS Code, o container vê a mudança imediatamente.
+What exists is a **volume** — a shared window between your machine and the container. When the container looks at `/opt/app`, it is seeing, in real time, the `~/dev/netflix-data` folder on your machine. If you edit a file in VS Code, the container sees the change immediately.
 
 ```
-SUA MÁQUINA                    CONTAINER
+YOUR MACHINE                   CONTAINER
 ~/dev/netflix-data/   ←──→   /opt/app/
   ├── ingestion/                ├── ingestion/
   ├── dbt_project/              ├── dbt_project/
   └── data/                     └── data/
-        ↑ MESMOS ARQUIVOS, sem cópia
+        ↑ SAME FILES, no copy
 ```
 
 ---
 
-## A arquitetura real — o que está sempre ligado
+## The real architecture — what is always running
 
-Quando você roda `docker compose -f airflow/docker-compose-airflow.yml up -d`, sobem 3 containers que ficam **permanentemente vivos**:
+When you run `docker compose -f airflow/docker-compose-airflow.yml up -d`, three containers come up and stay **permanently alive**:
 
 ### 1. `postgres`
-Banco de dados do próprio Airflow. Guarda:
-- Quais DAGs existem e sua estrutura
-- Histórico de execuções (todo run de toda task)
-- Status atual (rodando, falhou, sucesso, esperando)
-- Configurações do Airflow (conexões, variáveis)
+Airflow's own metadata database. Stores:
+- Which DAGs exist and their structure
+- Execution history (every run of every task)
+- Current status (running, failed, success, waiting)
+- Airflow configuration (connections, variables)
 
-**Importante:** este postgres não tem nada a ver com seus dados de filme. Ele é o "cérebro de memória" do Airflow.
+**Important:** this postgres has nothing to do with your movie data. It is Airflow's "memory brain".
 
 ### 2. `airflow-scheduler`
-O coração do Airflow. Fica num loop infinito:
+The heart of Airflow. Runs in an infinite loop:
 
 ```
-a cada poucos segundos:
-  1. lê os arquivos .py em /opt/airflow/dags/
-  2. verifica: algum DAG deveria estar rodando agora?
-     - bateu o horário do schedule?
-     - alguém clicou "Trigger" na UI?
-  3. se sim, cria as task instances no postgres
-  4. executa as tasks (no LocalExecutor, executa no próprio scheduler)
+every few seconds:
+  1. reads .py files in /opt/airflow/dags/
+  2. checks: should any DAG be running now?
+     - did a schedule trigger fire?
+     - did someone click "Trigger" in the UI?
+  3. if yes, creates task instances in postgres
+  4. executes the tasks (with LocalExecutor, runs in the scheduler process itself)
 ```
 
 ### 3. `airflow-webserver`
-A UI web em `http://localhost:8080`. Não faz nada do pipeline — apenas mostra o estado do postgres em forma visual.
+The web UI at `http://localhost:8080`. Does nothing in the pipeline — it only displays the state stored in postgres as a visual interface.
 
-### Mais um container temporário: `airflow-init`
-Roda **uma única vez** quando você faz `docker compose up` pela primeira vez. Cria as tabelas no postgres e o usuário admin. Depois morre. Não fica ligado.
+### One temporary container: `airflow-init`
+Runs **once** the first time you do `docker compose up`. Creates the postgres tables and the admin user. Then exits. It does not stay running.
 
 ---
 
-## O fluxo passo a passo, do ponto de vista temporal
+## The step-by-step flow, from a temporal perspective
 
-### Momento T0 — você liga tudo
+### Moment T0 — you start everything
 
 ```bash
 docker compose -f airflow/docker-compose-airflow.yml up -d
 ```
 
-O que acontece:
-1. Docker baixa as imagens (só na primeira vez)
-2. Sobe o `postgres` e espera ele ficar saudável
-3. Roda o `airflow-init` (cria tabelas + usuário admin) e morre
-4. Sobe o `airflow-webserver` e o `airflow-scheduler`
-5. **Os 3 ficam ligados. Para sempre. Até você mandar parar.**
+What happens:
+1. Docker pulls the images (first time only)
+2. Starts `postgres` and waits for it to become healthy
+3. Runs `airflow-init` (creates tables + admin user) and exits
+4. Starts `airflow-webserver` and `airflow-scheduler`
+5. **All three stay running. Forever. Until you tell them to stop.**
 
-### Momento T1 — você abre o navegador
+### Moment T1 — you open the browser
 
-`http://localhost:8080` mostra a lista de DAGs disponíveis. O `movie_recommendation_pipeline` aparece porque o scheduler leu o arquivo `airflow/dags/movie_pipeline_dag.py` automaticamente.
+`http://localhost:8080` shows the list of available DAGs. `movie_recommendation_pipeline` appears because the scheduler automatically read `airflow/dags/movie_pipeline_dag.py`.
 
-### Momento T2 — algo dispara o DAG
+### Moment T2 — something triggers the DAG
 
-Pode ser:
-- **Manual:** você clica "Trigger DAG" na UI
-- **Schedule:** o DAG tem `schedule="@daily"` e bateu meia-noite
-- **Sensor:** algo detectou mudança numa fonte externa (não usamos aqui)
+Could be:
+- **Manual:** you click "Trigger DAG" in the UI
+- **Schedule:** the DAG has `schedule="@daily"` and midnight arrived
+- **Sensor:** something detected a change in an external source (not used here)
 
-### Momento T3 — o DAG executa
+### Moment T3 — the DAG executes
 
-O scheduler vê que precisa rodar. Cria 3 "task instances" no postgres:
+The scheduler sees it needs to run. Creates task instances in postgres:
 
 ```
-1. ingest_csvs        (status: pending)
+1. ingest_raw_data    (status: pending)
 2. dbt_run            (status: pending)
 3. dbt_test           (status: pending)
+4. dbt_docs_generate  (status: pending)
 ```
 
-E começa a executar **na ordem definida pelas dependências**:
+And starts executing **in the order defined by the dependencies**:
 
-#### Task 1: `ingest_csvs`
-- Comando: `cd /opt/app && python ingestion/load_to_duckdb.py`
-- O scheduler executa esse comando dentro do próprio container do scheduler
-- O Python lê os CSVs em `/opt/app/data/raw/` (que é a sua pasta `~/dev/netflix-data/data/raw/`)
-- Grava em `/opt/app/data/warehouse.duckdb` (que é o seu `~/dev/netflix-data/data/warehouse.duckdb`)
-- Status no postgres muda para `success` ou `failed`
+#### Task 1: `ingest_raw_data`
+- Command: `cd /opt/app && python ingestion/load_to_duckdb.py`
+- The scheduler runs this command inside its own container
+- Python reads CSVs from `/opt/app/data/raw/` (which is your `~/dev/netflix-data/data/raw/`)
+- Writes to `/opt/app/data/warehouse.duckdb` (which is your `~/dev/netflix-data/data/warehouse.duckdb`)
+- Status in postgres changes to `success` or `failed`
 
 #### Task 2: `dbt_run`
-- Só roda se a task 1 terminou com `success`
-- Comando: `cd /opt/app/dbt_project && dbt run --profiles-dir . --project-dir .`
-- Roda os 9 modelos: 3 staging → 2 intermediate → 4 marts
-- Cada modelo grava no `warehouse.duckdb`
+- Only runs if task 1 finished with `success`
+- Command: `cd /opt/app/dbt_project && dbt run --profiles-dir . --project-dir .`
+- Runs all models: 3 staging → 2 intermediate → 5 marts
+- Each model writes to `warehouse.duckdb`
 
 #### Task 3: `dbt_test`
-- Só roda se a task 2 terminou com `success`
-- Comando: `cd /opt/app/dbt_project && dbt test --profiles-dir . --project-dir .`
-- Roda todos os testes do `schema.yml`
+- Only runs if task 2 finished with `success`
+- Command: `cd /opt/app/dbt_project && dbt test --profiles-dir . --project-dir .`
+- Runs all tests defined in `schema.yml`
 
-### Momento T4 — DAG termina
+#### Task 4: `dbt_docs_generate`
+- Only runs if task 3 finished with `success`
+- Command: `cd /opt/app/dbt_project && dbt docs generate --profiles-dir . --project-dir .`
+- Regenerates the lineage graph artifacts
 
-Os containers **continuam ligados**. Não morre nada. O scheduler volta ao loop, esperando o próximo trigger.
+### Moment T4 — DAG finishes
+
+The containers **keep running**. Nothing stops. The scheduler returns to its loop, waiting for the next trigger.
 
 ---
 
-## Resumindo: o que SEU mental model precisa ajustar
+## Summary: what your mental model needs to adjust
 
-| Sua descrição original | Realidade |
+| Your original description | Reality |
 |---|---|
-| "Algo trigga a necessidade de subir um container" | Containers já estão sempre ligados |
-| "Faz um ambiente ubuntu com dbt, duckdb" | A imagem `apache/airflow:2.9.1` já vem pronta; o `_PIP_ADDITIONAL_REQUIREMENTS` instala o `dbt-duckdb` no startup do container |
-| "Sobe o projeto inteiro para o container" | O projeto está sempre acessível via volume; nada é copiado |
-| "Airflow aciona algo para acabar com o container" | Containers nunca terminam sozinhos; só param quando você manda |
+| "Something triggers the need to start a container" | Containers are already always running |
+| "Builds an Ubuntu environment with dbt, duckdb" | The `apache/airflow:2.9.1` image comes ready; `_PIP_ADDITIONAL_REQUIREMENTS` installs `dbt-duckdb` at container startup |
+| "Uploads the entire project into the container" | The project is always accessible via volume; nothing is copied |
+| "Airflow signals something to shut down the container" | Containers never stop on their own; they only stop when you tell them to |
 
 ---
 
-## Então o que muda quando o pipeline roda?
+## So what changes when the pipeline runs?
 
-Apenas dados. Os arquivos do projeto (Python, SQL) não mudam — só são lidos e executados. O que muda é:
+Only data. The project files (Python, SQL) do not change — they are only read and executed. What changes is:
 
-1. **`data/warehouse.duckdb`** — recebe novos dados
-2. **Postgres do Airflow** — recebe registros de execução (essa task rodou, foi sucesso, demorou X segundos)
-3. **Logs em `/opt/airflow/logs/`** — o que cada task imprimiu
+1. **`data/warehouse.duckdb`** — receives new data
+2. **Airflow's postgres** — receives execution records (this task ran, succeeded, took X seconds)
+3. **Logs in `/opt/airflow/logs/`** — what each task printed
 
-Tudo o resto fica igual.
+Everything else stays the same.
 
 ---
 
-## Diagrama temporal
+## Temporal diagram
 
 ```
-TEMPO →
+TIME →
 
-[você] docker compose up
+[you] docker compose up
            │
            ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ postgres (sempre ligado)                                │
-  │ airflow-scheduler (sempre ligado, em loop)              │
-  │ airflow-webserver (sempre ligado)                       │
+  │ postgres (always running)                               │
+  │ airflow-scheduler (always running, in a loop)           │
+  │ airflow-webserver (always running)                      │
   └─────────────────────────────────────────────────────────┘
            │                    │                    │
            ▼                    ▼                    ▼
        [trigger 1]          [trigger 2]          [trigger 3]
            │                    │                    │
-       executa DAG          executa DAG          executa DAG
-       atualiza dados       atualiza dados       atualiza dados
+       runs DAG             runs DAG             runs DAG
+       updates data         updates data         updates data
            │                    │                    │
        containers           containers           containers
-       continuam            continuam            continuam
-       ligados              ligados              ligados
+       keep running         keep running         keep running
 ```
 
-Cada execução do pipeline é só **um pulso de atividade** dentro de containers que estão sempre vivos.
+Each pipeline execution is just **one pulse of activity** inside containers that are always alive.

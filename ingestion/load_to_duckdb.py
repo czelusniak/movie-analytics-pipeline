@@ -2,7 +2,7 @@ from pathlib import Path
 import duckdb
 
 # 1. Define relative paths
-script_dir = Path(__file__).parent.parent  # go up 1 level from ingestion/ to project root
+script_dir = Path(__file__).parent.parent  # go up one level from ingestion/ to project root
 raw_dir = script_dir / "data" / "raw"
 db_path = script_dir / "data" / "warehouse.duckdb"
 
