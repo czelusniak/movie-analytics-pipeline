@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: mart_top_movies
+    description: "Top movies based on user ratings."
+    columns:
+      - name: movie_id
+        description: "Unique identifier for each movie."
+        tests:
+          - not_null
+
+  - name: mart_popularity_vs_quality
+    description: "Analysis of movie popularity vs quality based on user ratings."
+    columns:
+      - name: movie_id
+        description: "Unique identifier for each movie."
+        tests:
+          - not_null
+
+  - name: mart_ratings_heatmap
+    description: "Heatmap of user ratings by year and month."
+    columns:
+      - name: rating_year
+        description: "Year of the rating."
+        tests:
+          - not_null
+      - name: rating_month
+        description: "Month number of the rating."
+        tests:
+          - not_null
+      - name: month_name
+        description: "Month name of the rating."
+        tests:
+          - not_null
+      - name: total_ratings
+        description: "Total number of ratings."
+        tests:
+          - not_null
+
+  - name: mart_user_activity
+    description: "Analysis of user activity based on their rating history."
+    columns:
+      - name: user_id
+        description: "Unique identifier for each user."
+        tests:
+          - not_null
+
+  - name: mart_genre_performance
+    description: "Performance of movies by genre based on user ratings."
+    columns:
+      - name: genre
+        description: "Genre of the movie."
+        tests:
+          - not_null
