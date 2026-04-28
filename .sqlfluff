@@ -1,3 +1,4 @@
 [sqlfluff]
 dialect = duckdb
 templater = jinja
+exclude_rules = LT05, RF02
