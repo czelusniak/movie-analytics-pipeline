@@ -15,6 +15,19 @@ End-to-end batch data pipeline using the public [GroupLens](https://grouplens.or
 
 ![High Level Architecture](docs/images/high_level_architecture.png)
 
+```mermaid
+graph LR
+    A[GroupLens CSVs\ndata/raw/] -->|Python ingest| B[(DuckDB\nraw layer)]
+    B -->|dbt run| C[(DuckDB\nstaging layer)]
+    C -->|dbt run| D[(DuckDB\nintermediate layer)]
+    D -->|dbt run| E[(DuckDB\nmart layer)]
+    E --> F[Apache Superset\ndashboards]
+    G[Airflow DAG] -.->|orchestrates| B
+    G -.->|orchestrates| C
+    G -.->|orchestrates| D
+    G -.->|orchestrates| E
+```
+
 | Layer | Tool | Role |
 |---|---|---|
 | Ingestion | Python + DuckDB | Load raw CSVs into local warehouse |
