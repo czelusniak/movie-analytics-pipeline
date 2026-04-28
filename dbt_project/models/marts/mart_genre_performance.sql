@@ -12,7 +12,7 @@ filtered_movies as (
     from source_movies
     where
         genres is not null
-        and genres != '(no genres listed)'
+        and genres <> '(no genres listed)'
 
 ),
 
@@ -38,5 +38,5 @@ renamed as (
 )
 
 select * from renamed
-where genre != ''
+where genre <> ''
 order by total_ratings desc, avg_rating desc

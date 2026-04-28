@@ -5,13 +5,13 @@ source_ratings_unified as (
 
 aggregated as (
     select
-        extract(year from rating_ts) as year,
+        extract(year from rating_ts) as rating_year,
         extract(month from rating_ts) as month_number,
         strftime(rating_ts, '%b') as month_name,
         count(*) as total_ratings
     from source_ratings_unified
-    group by year, month_number, month_name
+    group by rating_year, month_number, month_name
 )
 
 select * from aggregated
-order by year, month_number
+order by rating_year, month_number
