@@ -11,7 +11,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - run: pip install dbt-duckdb duckdb sqlfluff  # Install dbt, duckdb and sqlfluff
+      - run: pip install dbt-duckdb duckdb sqlfluff sqlfluff-templater-dbt  # Install dbt, duckdb and sqlfluff
 
       - name: Create raw directory  
         run: mkdir -p data/raw
