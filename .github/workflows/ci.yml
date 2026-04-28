@@ -6,12 +6,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4       # clona o repo
+      - uses: actions/checkout@v4       # clones the repo
       - uses: actions/setup-python@v5   # configura o Python
         with:
           python-version: '3.11'
 
-      - run: pip install dbt-duckdb duckdb  # instala dbt e duckdb
+      - run: pip install dbt-duckdb duckdb sqlfluff  # Install dbt, duckdb and sqlfluff
 
       - name: Create raw directory  
         run: mkdir -p data/raw
@@ -24,6 +24,9 @@ jobs:
       
       - name: run loading script
         run: python ingestion/load_to_duckdb.py
+
+      - name: SQL lint
+        run: sqlfluff lint dbt_project/models/ # Point out problems with formatting and style in the SQL files
 
       - name: dbt run && dbt test
         working-directory: dbt_project # define the working directory for dbt commands
