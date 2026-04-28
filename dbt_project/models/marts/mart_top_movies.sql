@@ -5,7 +5,7 @@ source as (
 
 renamed as (
     select
-        movie_id,
+        id_wrongggggggggg,
         title,
         genres,
         release_year,
