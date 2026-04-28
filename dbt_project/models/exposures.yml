@@ -1,0 +1,15 @@
+exposures:
+  - name: netflix-data-movies-dashboard
+    type: dashboard
+    maturity: medium
+    url: http://localhost:8088/dashboard/1
+    description: "Metrics and dimensions for the Netflix Movies Dashboard in Superset, including top movies, genre performance, and user activity."
+    depends_on:
+      - ref('mart_top_movies')
+      - ref('mart_popularity_vs_quality')
+      - ref('mart_ratings_heatmap')
+      - ref('mart_genre_performance')
+      - ref('mart_user_activity')
+    owner:
+      name: George
+      email: georgeczelusniak@gmail.com

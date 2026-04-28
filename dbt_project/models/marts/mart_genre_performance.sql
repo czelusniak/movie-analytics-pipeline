@@ -37,4 +37,5 @@ renamed as (
 )
 
 select * from renamed
+where genre != ''
 order by total_ratings desc, avg_rating desc

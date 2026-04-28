@@ -11,6 +11,7 @@ sources:
         description: "placeholder"
       - name: user_rating_history
         description: "placeholder"
+
 models:
   - name: stg_movies
     description: "Cleaned movie catalog from the raw movies table."
@@ -20,13 +21,13 @@ models:
         tests:
           - unique
           - not_null
+
   - name: stg_user_rating_history
     description: "Cleaned user rating history from the raw user rating history table."
     columns:
       - name: movie_id
         description: "Unique identifier for each movie."
         tests:
-          - unique
           - not_null
       - name: user_id
         description: "Unique identifier for each user."
@@ -34,14 +35,11 @@ models:
           - not_null
       - name: rating
         description: "Rating given by the user to the movie."
-        tests:
-          - not_null
-          - accepted_values:
-              values: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
-      - name: tstamp
+      - name: rating_ts
         description: "Timestamp of when the rating was given."
         tests:
           - not_null
+
   - name: stg_ratings_for_additional_users
     description: "Cleaned ratings for additional users from the raw user rating history table."
     columns:
@@ -57,12 +55,11 @@ models:
         description: "Timestamp of when the rating was given."
         tests:
           - not_null
-      - name: tstamp
-        description: "Timestamp of when the rating was given."
-        tests:
-          - not_null
-  - name: int_user_unified
-    description: "Unified user rating history, combining stg_user_rating_history and stg_ratings_for_additional_users."
+      - name: rating
+        description: "Rating given by the user to the movie."
+ 
+  - name: int_ratings_unified
+    description: "Unified ratings table combining user ratings from both sources, with duplicates removed and a source column added."
     columns:
       - name: movie_id
         description: "Unique identifier for each movie."
@@ -76,10 +73,13 @@ models:
         description: "Timestamp of when the rating was given."
         tests:
           - not_null
-      - name: tstamp
-        description: "Timestamp of when the rating was given."
+      - name: rating
+        description: "Rating given by the user to the movie."
         tests:
           - not_null
+          - accepted_values:
+              values: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+
   - name: int_movie_kpi
     description: "KPIs for each movie based on user ratings."
     columns:
@@ -87,6 +87,7 @@ models:
         description: "Unique identifier for each movie."
         tests:
           - not_null
+
   - name: mart_top_movies
     description: "Top movies based on user ratings."
     columns:
@@ -94,6 +95,7 @@ models:
         description: "Unique identifier for each movie."
         tests:
           - not_null
+
   - name: mart_popularity_vs_quality
     description: "Analysis of movie popularity vs quality based on user ratings."
     columns:
@@ -101,6 +103,7 @@ models:
         description: "Unique identifier for each movie."
         tests:
           - not_null
+
   - name: mart_ratings_heatmap
     description: "Heatmap of user ratings for each movie."
     columns:
@@ -120,5 +123,19 @@ models:
         description: "Total number of ratings for the movie."
         tests:
           - not_null
+
   - name: mart_user_activity
     description: "Analysis of user activity based on their rating history."
+    columns:
+      - name: user_id
+        description: "Unique identifier for each user."
+        tests:
+          - not_null
+
+  - name: mart_genre_performance
+    description: "Performance of movies by genre based on user ratings."
+    columns:
+      - name: genre
+        description: "Genre of the movie."
+        tests:
+          - not_null
