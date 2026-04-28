@@ -123,6 +123,8 @@ movie-analytics-pipeline/
 
 ## Dashboards (Superset)
 
+![Dashboard](docs/images/dashboard.jpg)
+
 | Dashboard | Business question answered |
 |---|---|
 | Top 10 Movies | Which movies have the highest avg rating with ≥20 ratings? |
@@ -130,6 +132,8 @@ movie-analytics-pipeline/
 | Ratings Heatmap | Are there seasonal patterns in user rating behavior? |
 | Genre Performance | Which genres have the most volume vs. best quality? |
 | User Activity | What is the distribution of user engagement? |
+
+A Superset export (dashboards + datasets) is available at [`docs/dashboard_export.zip`](docs/dashboard_export.zip) for local import.
 
 ---
 
