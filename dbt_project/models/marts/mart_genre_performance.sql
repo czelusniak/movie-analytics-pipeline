@@ -23,7 +23,7 @@ exploded as (
     from filtered_movies as m
     inner join source_ratings as r -- filtering out movies without ratings
         on m.movie_id = r.movie_id
-    cross join unnest(string_split(genres, '|')) as t(genre)
+    cross join unnest(string_split(genres, '|')) as t (genre)
 ),
 
 renamed as (
