@@ -13,8 +13,6 @@
 #   docker compose -f airflow/docker-compose-airflow.yml up -d
 #   # or: make airflow-up
 
-version: '3.8'
-
 x-airflow-common: &airflow-common
   image: apache/airflow:2.9.1
   environment:

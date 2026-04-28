@@ -21,14 +21,12 @@
 #   docker compose -f docker/docker-compose-superset.yml up -d
 #   # or: make superset-up
 
-version: '3.8'
-
 services:
   superset:
     image: apache/superset:4.0.2
     container_name: superset
     environment:
-      SUPERSET_SECRET_KEY: "your-secret-key-change-in-production"
+      SUPERSET_SECRET_KEY: "${SUPERSET_SECRET_KEY:-change-me-in-production}"
     ports:
       - "8088:8088"
     volumes:

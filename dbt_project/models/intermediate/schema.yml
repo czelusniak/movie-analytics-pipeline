@@ -8,6 +8,10 @@ models:
         description: "Unique identifier for each movie."
         tests:
           - not_null
+          - relationships:
+              to: ref('stg_movies')
+              field: movie_id
+              severity: warn
       - name: user_id
         description: "Unique identifier for each user."
         tests:

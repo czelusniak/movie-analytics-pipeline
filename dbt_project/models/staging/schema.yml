@@ -6,11 +6,11 @@ sources:
     description: "The raw data source, ingested from CSV files."
     tables:
       - name: movies
-        description: "placeholder"
+        description: "Raw movie catalog from GroupLens. Contains movie title (with release year embedded) and pipe-separated genres."
       - name: ratings_for_additional_users
-        description: "placeholder"
+        description: "Raw explicit ratings from an additional cohort of users. Same schema as user_rating_history."
       - name: user_rating_history
-        description: "placeholder"
+        description: "Raw historical explicit ratings per user from the main GroupLens cohort."
 
 models:
   - name: stg_movies
