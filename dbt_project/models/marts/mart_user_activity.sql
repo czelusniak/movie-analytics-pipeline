@@ -4,14 +4,14 @@ source as (
 ),
 
 renamed as (
-    select 
+    select
         user_id,
-        count(*) AS total_ratings,
-        count(DISTINCT movie_id) AS distinct_movies_rated,
-        avg(rating) AS avg_rating,
-        stddev(rating) AS std_rating,
-        min(rating_ts) AS first_activity_ts,
-        max(rating_ts) AS last_activity_ts
+        count(*) as total_ratings,
+        count(distinct movie_id) as distinct_movies_rated,
+        avg(rating) as avg_rating,
+        stddev(rating) as std_rating,
+        min(rating_ts) as first_activity_ts,
+        max(rating_ts) as last_activity_ts
     from source
     group by user_id
 )

@@ -33,11 +33,11 @@ filtered as (
         src
     from all_ratings
     where
-        user_id    is not null
-        and movie_id   is not null
-        and rating     is not null
-        and rating_ts  is not null
-        and src        is not null
+        user_id is not null
+        and movie_id is not null
+        and rating is not null
+        and rating_ts is not null
+        and src is not null
         and rating between 0 and 5  --filtering out invalid ratings such as -1
 )
 

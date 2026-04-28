@@ -1,4 +1,4 @@
-with 
+with
 source_movies as (
     select * from {{ ref('stg_movies') }}
 ),
@@ -10,18 +10,19 @@ source_ratings as (
 filtered_movies as (
     select *
     from source_movies
-    where genres is not null
-    and genres != '(no genres listed)'
+    where
+        genres is not null
+        and genres != '(no genres listed)'
 
 ),
 
 exploded as (
-    select 
+    select
         genre,
         r.rating
     from filtered_movies as m
     inner join source_ratings as r -- filtering out movies without ratings
-    on m.movie_id = r.movie_id
+        on m.movie_id = r.movie_id
     cross join unnest(string_split(genres, '|')) as t(genre)
 ),
 
