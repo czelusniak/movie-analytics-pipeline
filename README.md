@@ -13,7 +13,7 @@ End-to-end batch data pipeline using the public [GroupLens](https://grouplens.or
 
 ## Architecture
 
-![High Level Architecture](docs/images/high_level_architecture.png)
+![High Level Architecture](docs/images/high_level_architecture.jpg)
 
 ```mermaid
 graph LR
