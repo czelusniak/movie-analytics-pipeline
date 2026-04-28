@@ -12,11 +12,16 @@ jobs:
           python-version: '3.11'
 
       - run: pip install dbt-duckdb duckdb  # instala dbt e duckdb
+
+      - name: Create raw directory  
+        run: mkdir -p data/raw
+
       - name: Copy sample data to raw
         run: |
           cp data/sample/movies_sample.csv data/raw/movies.csv
           cp data/sample/user_rating_history_sample.csv data/raw/user_rating_history.csv
           cp data/sample/ratings_for_additional_users_sample.csv data/raw/ratings_for_additional_users.csv
+      
       - name: dbt run && dbt test
         working-directory: dbt_project # define the working directory for dbt commands
         run: |
