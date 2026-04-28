@@ -14,9 +14,9 @@ jobs:
       - run: pip install dbt-duckdb duckdb  # instala dbt e duckdb
       - name: Copy sample data to raw
         run: |
-          cp data/samples/movies_sample.csv data/raw/movies.csv
-          cp data/samples/user_rating_history_sample.csv data/raw/user_rating_history.csv
-          cp data/samples/ratings_for_additional_users_sample.csv data/raw/ratings_for_additional_users.csv
+          cp data/sample/movies_sample.csv data/raw/movies.csv
+          cp data/sample/user_rating_history_sample.csv data/raw/user_rating_history.csv
+          cp data/sample/ratings_for_additional_users_sample.csv data/raw/ratings_for_additional_users.csv
       - name: dbt run && dbt test
         working-directory: dbt_project # define the working directory for dbt commands
         run: |
