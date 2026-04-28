@@ -1,64 +1,25 @@
-# CI: Data Quality Gates
-#
-# Runs on every push to main and on every pull request.
-# Fails the build if any dbt test fails — this prevents bad data from merging.
-#
-# What this teaches you:
-#   - How to run dbt tests in a CI environment
-#   - How to use DuckDB in-memory for fast CI (no persistent file needed)
-#   - How to cache Python dependencies to speed up CI runs
+name: dbt test
 
-name: dbt Test + Lint
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push]
 
 jobs:
-  dbt-test:
-    name: dbt test
+  test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4       # clona o repo
+      - uses: actions/setup-python@v5   # configura o Python
         with:
           python-version: '3.11'
-          cache: 'pip'
 
-      - name: Install dependencies
+      - run: pip install dbt-duckdb duckdb  # instala dbt e duckdb
+      - name: Copy sample data to raw
         run: |
-          pip install dbt-duckdb>=1.8.0 duckdb>=0.10.0
+          cp data/samples/movies_sample.csv data/raw/movies.csv
+          cp data/samples/user_rating_history_sample.csv data/raw/user_rating_history.csv
+          cp data/samples/ratings_for_additional_users_sample.csv data/raw/ratings_for_additional_users.csv
+      - name: dbt run && dbt test
+        working-directory: dbt_project # define the working directory for dbt commands
+        run: |
+          dbt run --profiles-dir . --project-dir .
+          dbt test --profiles-dir . --project-dir .
 
-      # In CI we load sample data (small CSVs) instead of the full dataset.
-      # This keeps the CI run fast (< 1 minute).
-      - name: Load sample data into DuckDB
-        run: python ingestion/load_to_duckdb.py
-        env:
-          RAW_DATA_DIR: data/sample      # Use sample CSVs in CI
-          DUCKDB_PATH: data/warehouse.duckdb
-
-      - name: Run dbt models
-        working-directory: dbt_project
-        run: dbt run --profiles-dir . --project-dir .
-
-      - name: Run dbt tests
-        working-directory: dbt_project
-        run: dbt test --profiles-dir . --project-dir .
-
-  # Uncomment after you install sqlfluff:
-  # sql-lint:
-  #   name: SQL lint (sqlfluff)
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.11'
-  #     - run: pip install sqlfluff sqlfluff-templater-dbt
-  #     - run: sqlfluff lint dbt_project/models/ --dialect duckdb
