@@ -17,11 +17,13 @@ End-to-end batch data pipeline using the public [GroupLens](https://grouplens.or
 graph LR
     A[GroupLens CSVs\ndata/raw/] -->|Python ingest| B[(DuckDB\nraw layer)]
     B -->|dbt run| C[(DuckDB\nstaging layer)]
-    C -->|dbt run| D[(DuckDB\nmart layer)]
-    D --> E[Apache Superset\ndashboards]
-    F[Airflow DAG] -.->|orchestrates| B
-    F -.->|orchestrates| C
-    F -.->|orchestrates| D
+    C -->|dbt run| D[(DuckDB\nintermediate layer)]
+    D -->|dbt run| E[(DuckDB\nmart layer)]
+    E --> F[Apache Superset\ndashboards]
+    G[Airflow DAG] -.->|orchestrates| B
+    G -.->|orchestrates| C
+    G -.->|orchestrates| D
+    G -.->|orchestrates| E
 ```
 
 | Layer | Tool | Role |
@@ -38,14 +40,13 @@ graph LR
 
 Source: [GroupLens Movie Recommendation Dataset](https://grouplens.org/datasets/movielens/)
 
+Three CSV files are ingested into the pipeline:
+
 | File | Description | Key columns |
 |---|---|---|
 | `movies.csv` | Movie catalog | `movieId`, `title`, `genres` |
-| `ratings_for_additional_users.csv` | Explicit user ratings | `userId`, `movieId`, `rating`, `timestamp` |
-| `user_rating_history.csv` | Historical ratings per user | `userId`, `movieId`, `rating`, `timestamp` |
-| `user_recommendation_history.csv` | Recommendation events | `userId`, `movieId`, `timestamp` |
-| `movie_elicitation_set.csv` | Preference elicitation movies | `movieId` |
-| `belief_data.csv` | User onboarding preferences | `userId`, `movieId`, `belief` |
+| `ratings_for_additional_users.csv` | Explicit user ratings (additional cohort) | `userId`, `movieId`, `rating`, `timestamp` |
+| `user_rating_history.csv` | Historical ratings per user (main cohort) | `userId`, `movieId`, `rating`, `timestamp` |
 
 ---
 
@@ -63,13 +64,14 @@ pip install -r ingestion/requirements.txt
 # 2. Download GroupLens CSVs to data/raw/ (see Dataset section above)
 
 # 3. Run the full pipeline
-make ingest        # Load CSVs → DuckDB raw layer
-make dbt-run       # Transform: staging → intermediate → mart
-make dbt-test      # Run all data quality tests
+python ingestion/load_to_duckdb.py        # Load CSVs → DuckDB raw layer
+cd dbt_project && dbt run --profiles-dir . --project-dir .    # Transform: staging → intermediate → mart
+dbt test --profiles-dir . --project-dir .                     # Run all data quality tests
+cd ..
 
 # 4. Start services
-make airflow-up    # Airflow UI at http://localhost:8080
-make superset-up   # Superset at http://localhost:8088
+docker compose -f airflow/docker-compose-airflow.yml up -d    # Airflow UI at http://localhost:8080
+docker compose -f docker/docker-compose-superset.yml up -d    # Superset at http://localhost:8088
 ```
 
 ---
@@ -80,27 +82,27 @@ make superset-up   # Superset at http://localhost:8088
 movie-analytics-pipeline/
 ├── data/
 │   ├── raw/                          # GroupLens CSVs (not committed)
-│   ├── sample/                       # 100-row samples for testing
+│   ├── sample/                       # 100-row samples for CI testing
 │   └── warehouse.duckdb              # Generated local warehouse (not committed)
 ├── ingestion/
 │   ├── load_to_duckdb.py             # Loads CSVs into DuckDB raw layer
-│   └── requirements.txt
+│   └── generate_samples.py           # Generates 100-row sample files for CI
 ├── dbt_project/
 │   ├── dbt_project.yml
 │   ├── profiles.yml
-│   ├── models/
-│   │   ├── staging/                  # Type cast, rename, deduplicate
-│   │   ├── intermediate/             # Business logic, joins
-│   │   └── marts/                    # Analytics-ready, Superset-facing
-│   ├── tests/                        # Custom singular tests
-│   └── seeds/                        # Reference data (genre mapping)
+│   └── models/
+│       ├── staging/                  # 1:1 with raw — type cast and rename only
+│       ├── intermediate/             # Business logic and joins
+│       ├── marts/                    # Analytics-ready, Superset-facing
+│       └── exposures.yml             # Documents Superset as downstream consumer
 ├── airflow/
 │   ├── dags/movie_pipeline_dag.py    # Orchestration DAG
 │   └── docker-compose-airflow.yml
 ├── docker/
 │   └── docker-compose-superset.yml
+├── docs/
+│   └── airflow-fluxo.md              # Airflow architecture deep-dive
 ├── .github/workflows/ci.yml          # CI: dbt test + sqlfluff
-├── Makefile
 └── README.md
 ```
 
@@ -109,16 +111,18 @@ movie-analytics-pipeline/
 ## dbt Layers
 
 ```
-raw.movies ─────────────────────┐
-raw.ratings ────────────────────┤→ stg_* → int_* → mart_*
-raw.user_rating_history ────────┘
+raw.movies ──────────────────────────────────────────────────────────────┐
+raw.user_rating_history ────────────────┐                                │
+raw.ratings_for_additional_users ───────┘→ stg_* → int_* → mart_*       │
+                                                          ↑               │
+                                                          └───────────────┘
 ```
 
 | Layer | Models | Purpose |
 |---|---|---|
-| staging | `stg_movies`, `stg_ratings`, `stg_user_rating_history` | Type casting, renaming, deduplication |
-| intermediate | `int_user_activity`, `int_genre_ratings` | Business logic and joins |
-| marts | `mart_top_movies`, `mart_genre_stats`, `mart_ratings_over_time`, `mart_user_activity` | Analytics-ready, exposed to Superset |
+| staging | `stg_movies`, `stg_user_rating_history`, `stg_ratings_for_additional_users` | Type casting and renaming, 1:1 with raw |
+| intermediate | `int_ratings_unified`, `int_movie_kpi` | UNION ALL of both rating sources; per-movie aggregated KPIs |
+| marts | `mart_top_movies`, `mart_popularity_vs_quality`, `mart_ratings_heatmap`, `mart_genre_performance`, `mart_user_activity` | Analytics-ready, exposed to Superset |
 
 ---
 
@@ -126,12 +130,11 @@ raw.user_rating_history ────────┘
 
 | Dashboard | Business question answered |
 |---|---|
-| Top 10 Movies | Which movies have the highest avg rating with ≥50 ratings? |
-| Most Rated | Which movies generate the most engagement? |
-| Ratings Over Time | Are there seasonal patterns in user rating behavior? |
-| Genre Popularity | Which genres have the most volume vs. best quality? |
+| Top 10 Movies | Which movies have the highest avg rating with ≥20 ratings? |
+| Popularity vs Quality | Is there a correlation between number of ratings and avg score? |
+| Ratings Heatmap | Are there seasonal patterns in user rating behavior? |
+| Genre Performance | Which genres have the most volume vs. best quality? |
 | User Activity | What is the distribution of user engagement? |
-| Popularity vs Quality | Is there a correlation between # ratings and avg score? |
 
 ---
 
@@ -139,13 +142,13 @@ raw.user_rating_history ────────┘
 
 Tests implemented via dbt (`schema.yml`):
 
-- `not_null` on all primary and foreign keys
-- `unique` on `movieId` (movies), `ratingId` (ratings)
-- `accepted_values` for `rating` column (0.5–5.0 scale)
-- Custom test: no future timestamps in `rated_at`
+- `not_null` on all primary and foreign keys across all layers
+- `unique` on `movie_id` in `stg_movies`
+- `accepted_values` for `rating` column (0.5–5.0 scale) in `int_ratings_unified`
+- `relationships` test: `int_ratings_unified.movie_id` → `stg_movies.movie_id` (severity: warn — ~10k orphan ratings kept by design)
 
 ```bash
-make dbt-test
+cd dbt_project && dbt test --profiles-dir . --project-dir .
 # All tests must pass before merging (enforced by CI)
 ```
 
@@ -153,10 +156,12 @@ make dbt-test
 
 ## CI/CD
 
-Every push to `main` or open pull request triggers:
+Every push triggers:
 
-1. `dbt test` against DuckDB with sample data
-2. `sqlfluff lint` for SQL style consistency
+1. Sample data is copied to `data/raw/` (100-row CSVs from `data/sample/`)
+2. `python ingestion/load_to_duckdb.py` loads the warehouse
+3. `sqlfluff lint` checks SQL style consistency
+4. `dbt run && dbt test` validates models and data quality
 
 See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
@@ -165,16 +170,16 @@ See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 ## What I Built and Learned
 
 **Problems solved:**
-- Multi-value `genres` field (pipe-separated) normalized into a flat structure via dbt
-- Duplicate ratings across source files deduplicated using `ROW_NUMBER()` window function
+- Multi-value `genres` field (pipe-separated) normalized into a flat structure via `CROSS JOIN unnest(string_split(...))`
+- Two rating source files with slightly different timestamp formats unified with `COALESCE(try_strptime(...), try_strptime(...))`
 - User activity metrics aggregated with proper handling of NULL and single-rating users
 
 **Skills demonstrated:**
 - Medallion architecture (raw → staging → intermediate → mart)
-- dbt: `ref()`, `source()`, generic + singular tests, `schema.yml` as data contracts
-- Airflow: DAG authoring, `BashOperator`, task dependencies and scheduling
+- dbt: `ref()`, `source()`, generic tests, `schema.yml` as data contracts, `exposures.yml` for lineage
+- Airflow: DAG authoring, `BashOperator`, task dependencies, 4-task pipeline (ingest → run → test → docs)
 - Docker Compose: multi-service local environment (Airflow + Superset)
-- GitHub Actions: automated data quality gates on every PR
+- GitHub Actions: automated data quality gates on every push
 
 ---
 
@@ -182,8 +187,6 @@ See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 - [ ] Add `dbt incremental` model for ratings (simulate streaming append)
 - [ ] Publish dbt docs to GitHub Pages (lineage graph public)
-- [ ] Add `dbt exposures` to document Superset as downstream consumer
-- [ ] Add `sqlfluff` linting stage to CI
 - [ ] Explore migration to Dagster for native dbt integration
 
 ---
