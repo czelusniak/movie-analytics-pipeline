@@ -23,13 +23,13 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    # Install dbt-duckdb inside the Airflow container on startup
-    _PIP_ADDITIONAL_REQUIREMENTS: "dbt-duckdb>=1.8.0 duckdb>=0.10.0"
+    _PIP_ADDITIONAL_REQUIREMENTS: "dbt-duckdb>=1.8.0 duckdb>=0.10.0" # Install dbt-duckdb inside the Airflow container on startup
   volumes:
-    # Mount project root into /opt/app so the DAG can run scripts
-    - ../:/opt/app
-    # Mount the DAGs folder so Airflow picks them up
-    - ./dags:/opt/airflow/dags
+    - ../:/opt/app # Mount project root into /opt/app so the DAG can run scripts
+    - ./dags:/opt/airflow/dags # Mount the DAGs folder so Airflow picks them up
+    - airflow_logs:/opt/airflow/logs
+
+
   depends_on:
     postgres:
       condition: service_healthy
@@ -51,17 +51,7 @@ services:
 
   airflow-init:
     <<: *airflow-common
-    command: >
-      bash -c "
-        airflow db migrate &&
-        airflow users create
-          --username airflow
-          --password airflow
-          --firstname Admin
-          --lastname User
-          --role Admin
-          --email admin@example.com
-      "
+    command: bash -c "airflow db migrate && airflow users create --username airflow --password airflow --firstname Admin --lastname User --role Admin --email admin@example.com"
     restart: "no"
 
   airflow-webserver:
@@ -83,3 +73,4 @@ services:
 
 volumes:
   postgres_data:
+  airflow_logs:

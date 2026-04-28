@@ -48,7 +48,7 @@ with DAG(
     dag_id="movie_recommendation_pipeline",
     description="Ingest GroupLens CSVs → dbt transform → dbt test",
     default_args=default_args,
-    start_date=datetime(2024, 1, 1),
+    start_date=datetime(2024, 1, 1), # catchup false means this is just a placeholder; it won't backfill
     schedule_interval=None,         # Change to "@daily" when you're ready to automate
     catchup=False,
     tags=["movies", "dbt", "batch"],
@@ -106,6 +106,15 @@ with DAG(
     #   3. THEN dbt_test
     ingest_raw_data >> dbt_run >> dbt_test
 
-    # LEARNING CHALLENGE: Add a 4th task after dbt_test that generates dbt docs.
-    # Hint: `dbt docs generate` creates the lineage graph.
-    # You'd add: dbt_test >> dbt_docs_generate
+    dbt_docs_generate = BashOperator(
+        task_id="dbt_docs_generate",
+        bash_command=(
+            "cd /opt/app/dbt_project "
+            "&& dbt docs generate "
+            "--profiles-dir . "
+            "--project-dir ."
+        ),
+        execution_timeout=timedelta(minutes=10),
+    )
+
+    ingest_raw_data >> dbt_run >> dbt_test >> dbt_docs_generate
